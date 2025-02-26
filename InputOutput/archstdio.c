@@ -1,4 +1,6 @@
-/*Riscrittura "minimale" di stdio.h perché sì*/
+/*"minimal" rewrite of stdio.h to better understand some inner workings of it.
+ *The code here is based on the glibc, but it is very much simplified and les robust
+ */
 
 #include <stdarg.h>
 #include <string.h>
@@ -33,7 +35,7 @@ int
 
 
 
-//Definizioni necessarie
+//Some necessary defines
 #define BUFFER_SIZE 1024
 #define SYS_write 1
 #define SYS_read 0
@@ -53,7 +55,7 @@ int bufp = 0;
 char gchar;
 
 /**************************************************************/
-//Funzioni di OUTPUT (stdout)
+//OUTPUT functions (stdout)
 ssize_t my_write(int, const void *, size_t);
 ssize_t low_write(int, const void *, size_t);
 void print_string(const char *);
@@ -65,11 +67,11 @@ int my_putchar(int);
 void my_native_putchar(char);
 void print_long_int(long int);
 
-//QUELLE funzioni
+//Getch and Ungetch...
 int getch(void);
 void ungetch(int);
 /*******************************************************************************************/
-//Funzioni di INPUT (stdin)
+//INPUT functions (stdin)
 int my_getchar(void);
 ssize_t bytes;
 ssize_t low_read(int, const void *, size_t);
@@ -112,7 +114,8 @@ ssize_t my_write(int fd, const void *buf, size_t count) {
 		//printf("%.*s", (int)count, (char *)buf);
 		//ALL THIS just to use printf? NOT ON MY WATCH!	
 		//lets try to find out  how to fucking deal with writing directly to stdout
-		/*me when the:*/ low_write(STDOUT_FILENO, buf, count); //funziona anche da sola LUL
+		 low_write(STDOUT_FILENO, buf, count);
+		 //my_write was a first approach at the write() function. The low_write is the actual implementation
 		return count;
 	}
 	return -1;
@@ -159,7 +162,7 @@ ssize_t low_write(int fd, const void *buf, size_t count) {
 	ssize_t result=syscall(SYS_write, fd, buf, count);
 
 	if (result <0) {
-		printf("Syscall fallita, return=%ld\n", result);
+		printf("Syscall failed with error code:%ld\n", result);
 		return -1;
 	}
 	return result;
@@ -243,13 +246,13 @@ int power10(int n) {
 }
 
 
-int getch(void) { //riscrivere con fz di output
+int getch(void) { //not operative as of yet
 	return (bufp > 0) ? getch_buf[--bufp] : my_getchar();
 }
 
 void ungetch(int c) {
 	if (bufp>=BUFFER_SIZE)
-	my_printf("Ungetch: Troppi caratteri\n");
+	my_printf("Ungetch: buffer overflow\n");
 	else 
 		getch_buf[bufp++] = c;
 }
@@ -324,7 +327,7 @@ void my_printf(const char *format, ...) {
 							}
 						case 'd':
 							//puts("ld");
-							long int k = va_arg(args, long int);
+							long int k = va_arg(args, long int); //This is seen by clangd plugin as a C23 extensions unfortunately.
 							print_long_int(k);
 							break;
 
@@ -365,6 +368,9 @@ va_end(args);
 
 /****************************************************************/
 //THIS PART IS NECESSARY FOR SCANF() TO WORK AS IT SWITCHES THE TERMINAL MODE USING <termios.h>
+//OR 
+//So I thought. In reality this is completely useless and only here because I found it interesting, but it has no bearing and it is never called
+//nor referenced
 void enable_raw_mode() {
 	struct termios term; puts("raw_struct");
 	tcgetattr(STDIN_FILENO, &term); puts("raw_tcgetattr");
@@ -382,9 +388,7 @@ void disable_raw_mode() {
 
 
 
-//A simple implementation of scanf() (Why do I do this to myself?)
-//cetriolo+d non va... O meglio va solo all'inizio
-//Update: tutti gli input vengono letti come cetriolo+d
+//A simple implementation of scanf() That does now work. This was the first attempt, following attempts have a number near them...
 int my_scanf1(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -466,9 +470,7 @@ int string_to_int(const char *str) {
 
 
 //A second implementation of scanf, from GeeksForGeeks mostly here to get an idea...
-//Comunque che grandi eh, implementano la propria scanf chiamando una versione deprecata di scanf: fscanf o vfscanf
-//se vogliamo essere pedanti...
-
+//This is the unfortunate version provided by GeeksForGeeks. It uses fscanf instead, not what I was looking for at all...
 /*int my_scanf2(const char *str, ...) {
 	    char token[100]; 
     int k = 0; 
@@ -580,8 +582,7 @@ int string_to_int(const char *str) {
     return 0; 
 }*/ 
 
-//A third implementation of scanf...
-//Everything works but inputting the fucking input i dont even know...
+//A third implementation of scanf... this broke me for some time. I had to come back a few weeks later and finally the next version kinda works
 int my_scanf3(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -648,7 +649,9 @@ int process_int(const char **format, char *input, va_list *args) {
   
   return 1; //SUCCESS!
 }
-
+//This version of scanf actually works, provided the number isn't too big. It overflows very easily despite my attempts at controlling overflow
+//It only receives int and long (although long is somewhat broken)
+//I will add other types and solve the OF issues in the future
 int my_scanf4(const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -688,7 +691,9 @@ int my_scanf4(const char *format, ...) {
 
 
 
-//TESTING
+//TESTING: the main function here only contains tests. It is chaotic as it contains almost every test I have run to check the correct working of every function.
+//The messages here can contain crass language as the library was originally born to be experimented with by some friends of mine and only by them.
+
 int main(void) {
 	/*const char *msg ="Hello m\' people!\t The syscall has spoken!\n";
 	my_write(STDOUT_FILENO, msg, strlen(msg));
@@ -713,15 +718,6 @@ int main(void) {
     
     //int scanf3; my_scanf3("%d", &scanf3); printf("scanf3: %d\n", scanf3);
    
-  const int MAX_SAFE=INT_MAX/10;
-    
-
-  if (value > MAX_SAFE ||(value == MAX_SAFE && (*input -'0') > ((int)((double)INT_MAX) % 10))) 
-  
-  return 1; //SUCCESS!
-}
-
-  
 /*    int64_t scanf4; my_scanf4("%d", &scanf4);
     int i=0;
     printf("scanf4: %d\n", scanf4);
