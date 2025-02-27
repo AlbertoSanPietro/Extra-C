@@ -2,6 +2,7 @@
  *The code here is based on the glibc, but it is very much simplified and les robust
  */
 
+//#include <csdint>
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
@@ -626,11 +627,11 @@ int my_scanf4(const char *format, ...) {
 */
 
 int process_int(const char **format, char *input, va_list *args) {
-  int *num = va_arg(*args, int *);
+  int64_t *num = va_arg(*args, int64_t *);
   int64_t value = 0;
   int sign = 1;
 
-  //skip spaces
+  //skip spaces 
   while (isspace(*input)){ input++;}
 
   //check sign
@@ -640,19 +641,106 @@ int process_int(const char **format, char *input, va_list *args) {
   //convert to integer
   while (*input && isdigit(*input)) {
     //check for overflow, the update value
-    if (value > MAX_SAFE ||(value == MAX_SAFE && (*input -'0') > ((double)INT_MAX) % 10)) 
+    if (value > MAX_SAFE ||(value == MAX_SAFE && (*input -'0') > (INT_MAX) % 10)) 
       {perror("Scanf4: EINVAL: buffer overflow"); return -1;}
     value = value * 10 + (*input - '0');
     input++;
   }
   *num = value * sign;
   
-  return 1; //SUCCESS!
+  return 0; //SUCCESS!
 }
+
+//Same but for long int (64 bits) the core idea here is to split the incoming input into two parts:
+//Lvalue and Hvalue to them place them together.
+//Lvalue would get the lower 64 bits
+//Hvalue the upper 64 bits
+
+
+typedef struct Int128_t {
+	int64_t Hvalue;
+	int64_t Lvalue;
+}Int128_t;
+
+int64_t process_long_int(const char **format, char *input, va_list *args) {
+	int64_t *num = va_arg(*args, int64_t *);
+	
+	int64_t Lvalue =0; //Low value, I'm going to attempt to split the incoming value into two 64 bit integers and then place them together in 
+										 //assembly-like syntax, this are going to be the lower 64 bits
+	//int64_t Hvalue=0; //High value, same as before, this time the higher 64 bits
+	
+  const long int MAX_SAFE=INT64_MAX/10;
+
+	int sign = 1;
+
+	while(!isspace(*input++)) {}
+	if (*input == '-') {sign = -1; input++;}
+	else if (*input == '+') {input++;}
+
+	while (*input &&isdigit(*input)) {
+	  if ((Lvalue > MAX_SAFE || Lvalue == MAX_SAFE && (*input -'0') > (INT64_MAX%10)) || (Lvalue > MAX_SAFE || Lvalue == MAX_SAFE && (*input -'0') > (INT64_MAX%10))) {
+			perror("Long int: Buffer overflow");
+			return -1;
+	}
+
+		Lvalue = Lvalue *10 + (*input -'0');
+		input++;			
+	}
+*num = (sign == 1)? Lvalue : -(int64_t) Lvalue;
+	return 0;
+}
+
+/*
+int process_long_int(const char **format, char **input_ptr, va_list *args) {
+    char *input = *input_ptr;
+    int64_t *num = va_arg(*args, int64_t *);
+    uint64_t value = 0;
+    int sign = 1;
+
+    // Skip leading whitespace
+    while (isspace(*input)) {
+        input++;
+    }
+
+    // Handle sign
+    if (*input == '-') {
+        sign = -1;
+        input++;
+    } else if (*input == '+') {
+        input++; // Skip '+' sign
+    }
+
+    const uint64_t max_abs = (sign == 1) ? (uint64_t)INT64_MAX : (uint64_t)INT64_MAX + 1;
+    const uint64_t max_safe = max_abs / 10;
+    const uint64_t max_last_digit = max_abs % 10;
+
+    while (isdigit((unsigned char)*input)) {
+        int digit = *input - '0';
+
+        // Check for overflow
+        if (value > max_safe || (value == max_safe && digit > max_last_digit)) {
+            perror("Scanf4: Overflow in long int");
+            return -1;
+        }
+
+        value = value * 10 + digit;
+        input++;
+    }
+
+    // Apply sign and assign
+    *num = (sign == 1) ? (int64_t)value : -(int64_t)value;
+
+    // Update input pointer
+    *input_ptr = input;
+
+    return 0; // Success
+}
+*/
+
 //This version of scanf actually works, provided the number isn't too big. It overflows very easily despite my attempts at controlling overflow
 //It only receives int and long (although long is somewhat broken)
 //I will add other types and solve the OF issues in the future
-int my_scanf4(const char *format, ...) {
+  int my_scanf4(const char *format, ...) {
   va_list args;
   va_start(args, format);
 
@@ -666,16 +754,23 @@ int my_scanf4(const char *format, ...) {
       return -1; //Error or EOF
   }
   buf[bytesRead] = '\0'; //NULL termination
-  int numAssigned =0;
-
+  int64_t numAssigned =0;
+	//int shortnumAssigned=0;
   //Parse *format
   while (*format) {
     if (*format == '%') {
       format++;
       switch (*format) {
         case 'd':
-          numAssigned +=process_int(&format, input, &args);
+          numAssigned += process_int(&format, input, &args);
           break;
+				case 'l':
+					format++;
+					switch(*format++) {
+						case 'd':
+							numAssigned += process_long_int(&format, input, &args);
+							break;
+					}
         default:
           va_end(args);
           perror("SCANF4: EBADF");
@@ -687,7 +782,6 @@ int my_scanf4(const char *format, ...) {
   va_end(args);
   return numAssigned;
 }
-
 
 
 
@@ -718,13 +812,12 @@ int main(void) {
     
     //int scanf3; my_scanf3("%d", &scanf3); printf("scanf3: %d\n", scanf3);
    
-/*    int64_t scanf4; my_scanf4("%d", &scanf4);
-    int i=0;
-    printf("scanf4: %d\n", scanf4);
+	int64_t scanf4; my_scanf4("%d", &scanf4);
+  int i=0;
+  printf("scanf4: %ld\n", scanf4);
 	int test= 5;	
 	//my_printf("\nSperando %f\t%d che funzioni... %ld\t%lf\n", 1.5, test, 123456789012, 15.1878123468173);
 	//printf("\nSperando %f\t%d che funzioni... %ld\t%.12lf\n", 1.5, test, 123456789012, 15.1878123468173);
-	*/
   return 0;
 }
 
