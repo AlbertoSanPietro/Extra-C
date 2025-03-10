@@ -11,7 +11,8 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <fcntl.h>
-
+#include <sys/types.h>
+#include <sys/stat.h>
 
 static jmp_buf env;
 
@@ -34,6 +35,7 @@ void setSignals() {
 	sigaction(SIGBUS, &sa, NULL);
 	sigaction(SIGHUP, &sa, NULL);
 	sigaction(SIGKILL, &sa, NULL);
+	
 
 	signal (SIGTSTP, SIG_IGN);
 }
@@ -42,6 +44,9 @@ void reopen_stdin() {
 	fclose(stdin);
 	stdin=fopen("/dev/tty", "r");
 }
+
+
+
 
 int main() {
 	char buffer[256];
@@ -54,7 +59,7 @@ int main() {
 	}
 
 	for(;;) {
-		printf(">\t");
+		printf("> ");
 		if (!fgets(buffer, sizeof(buffer), stdin)) {
 			puts("EOF detected, try again");
 			reopen_stdin();
