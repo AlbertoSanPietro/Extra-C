@@ -4,7 +4,7 @@
 	#define _GNU_SOURCE
 #endif
 
-
+#include <csignal> 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +35,7 @@ void setSignals() {
 	sigaction(SIGBUS, &sa, NULL);
 	sigaction(SIGHUP, &sa, NULL);
 	sigaction(SIGKILL, &sa, NULL);
-	
+	sigaction(SIGABRT, &sa, NULL);	
 
 	signal (SIGTSTP, SIG_IGN);
 }
