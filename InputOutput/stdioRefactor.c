@@ -1,5 +1,5 @@
 /*"minimal" rewrite of stdio.h to better understand some inner workings of it.
- *The code here is based on the glibc, but it is very much simplified and les robust
+ *The code here is based on the glibc, but it is very much simplified and less robust
  */
 
 #include <stdarg.h>
