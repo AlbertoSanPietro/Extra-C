@@ -1,5 +1,7 @@
+//THIS VERSION IS ONLY HERE AS A WAY TO TEACH A FEW OF MY ACQUAINTANCES; stdioRefactor is the correct file!
+
 /*"minimal" rewrite of stdio.h to better understand some inner workings of it.
- *The code here is based on the glibc, but it is very much simplified and les robust
+ *The code here is based on the glibc, but it is very much simplified and less robust
  */
 
 //#include <csdint>
