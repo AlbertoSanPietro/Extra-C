@@ -1,3 +1,7 @@
+/*
+* A simple and fun way to see goto in action
+* This code is NOT to be replicated
+*/
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
@@ -42,6 +46,7 @@ int main(int argc, char *argv[]) {
 	int Somma = 0;
 	
 	/*******************************************/
+	//since I was using gotos I decided to do this mostrosity.
 	if (argc< 1) {goto error;}
 		(argc >1 && strcmp(argv[1], "s") == 0) ? ((argc>2 && strcmp(argv[2], "m") == 0) ? (Somma=Media=1) : (Somma=1)) : ((argc>1 && strcmp(argv[1], "m") == 0) ? ((argc>2 && strcmp(argv[2], "s") == 0) ? (Somma=Media=1) : (Media=1)) : 0); 
 	
