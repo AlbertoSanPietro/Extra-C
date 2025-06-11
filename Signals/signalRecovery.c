@@ -57,7 +57,7 @@ void pippo() {
 
 
 __attribute__((noinline)) void illegal_instruction() {
-    __asm__ volatile ("ud2");
+    __asm__ volatile ("ud2"); //GNU __asm__ macro and volatile to avoid optimizaziton
 }
 
 void pluto() {
