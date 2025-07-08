@@ -1,0 +1,5 @@
+#Ignore executables:
+*.out
+
+#Ignore certain test files:
+MiniString.c
